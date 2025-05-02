@@ -1,0 +1,19 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <title>Resultados para "{{ query }}"</title>
+</head>
+<body>
+  <h1>Resultados para "{{ query }}"</h1>
+  <a href="/">← Nueva búsqueda</a>
+  <ul>
+    {% for e in entries %}
+      <li>
+        <strong>{{ e.title }}</strong> ({{ e.duration }} s) - {{ e.uploader }}
+        <a href="{{ url_for('download', video_id=e.id) }}">Descargar FLAC</a>
+      </li>
+    {% endfor %}
+  </ul>
+</body>
+</html>

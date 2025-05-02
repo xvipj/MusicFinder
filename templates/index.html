@@ -1,0 +1,142 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Buscador de Canciones</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    /* Spotify-inspired green */
+    .spotify-green { background-color: #1DB954; }
+    .spotify-green-hover:hover { background-color: #1ed760; }
+    /* Custom audio controls */
+    .audio-player { display: flex; align-items: center; gap: 0.75rem; }
+    .play-btn { width: 2rem; height: 2rem; display: flex; align-items: center; justify-content: center; cursor: pointer; }
+    .play-btn svg { width: 100%; height: 100%; }
+    .progress-container { position: relative; flex: 1; height: 0.25rem; background: #555; border-radius: 0.125rem; cursor: pointer; }
+    .progress { position: absolute; top: 0; left: 0; height: 100%; background: #1DB954; border-radius: 0.125rem; width: 0%; }
+    .time { font-size: 0.75rem; color: #aaa; }
+  </style>
+</head>
+<body class="bg-gray-900 text-white min-h-screen flex flex-col items-center p-4">
+  <header class="w-full max-w-5xl flex justify-between items-center mb-8">
+    <h1 class="text-4xl font-extrabold spotify-green p-2 rounded-lg">Music<span class="text-white">Finder</span></h1>
+  </header>
+
+  <form id="search-form" class="w-full max-w-2xl flex flex-col sm:flex-row gap-4 mb-8">
+    <input
+      type="text"
+      id="query"
+      placeholder="Busca una canción o artista"
+      required
+      class="flex-grow p-4 rounded-full border-2 border-gray-700 bg-gray-800 focus:outline-none focus:border-spotify-green transition"
+    >
+    <button
+      type="submit"
+      class="px-6 py-4 spotify-green rounded-full font-bold spotify-green-hover transition"
+    >
+      Buscar
+    </button>
+  </form>
+
+  <div id="results" class="w-full max-w-5xl grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
+    <!-- Resultados aparecerán aquí -->
+  </div>
+
+  <footer class="mt-auto py-4 text-gray-500 text-sm">
+    &copy; 2025 MusicFinder. Todos los derechos reservados.
+  </footer>
+
+  <script>
+    document.getElementById('search-form').addEventListener('submit', async e => {
+      e.preventDefault();
+      const query = document.getElementById('query').value;
+      const results = document.getElementById('results');
+      results.innerHTML = '<p class="col-span-full text-center text-gray-400">Buscando…</p>';
+
+      try {
+        const res = await fetch(`/api/search?query=${encodeURIComponent(query)}`);
+        const data = await res.json();
+
+        if (!data.length) {
+          results.innerHTML = '<p class="col-span-full text-center text-gray-400">No se encontraron resultados.</p>';
+          return;
+        }
+
+        results.innerHTML = data.map((e, idx) => `
+          <div class="bg-gray-800 p-4 rounded-2xl shadow-lg hover:shadow-2xl transition">
+            <img src="${e.thumbnail}" alt="${e.title}" class="w-full h-40 object-cover rounded-lg mb-4">
+            <h2 class="text-lg font-semibold mb-1 truncate">${e.title}</h2>
+            <p class="text-xs text-gray-400 mb-2">Duración: ${e.duration ?? '?'} s</p>
+
+            <div class="audio-player mb-4" data-index="${idx}">
+              <div class="play-btn" title="Play/Pause">
+                <svg viewBox="0 0 24 24" fill="currentColor" class="text-white">
+                  <polygon class="icon-play" points="5,3 19,12 5,21"></polygon>
+                  <g class="icon-pause" style="display:none">
+                    <rect x="6" y="4" width="4" height="16"></rect>
+                    <rect x="14" y="4" width="4" height="16"></rect>
+                  </g>
+                </svg>
+              </div>
+              <div class="progress-container">
+                <div class="progress"></div>
+              </div>
+              <div class="time">0:00</div>
+            </div>
+
+            <audio class="hidden" src="${e.audio_url}" preload="metadata"></audio>
+
+            <div class="flex space-x-2">
+              <a href="/download/${e.id}" class="flex-1 text-center py-2 rounded-full bg-green-600 hover:bg-green-500 font-bold text-sm transition">FLAC</a>
+              <a href="/download-mp3/${e.id}" class="flex-1 text-center py-2 rounded-full bg-blue-600 hover:bg-blue-500 font-bold text-sm transition">MP3</a>
+            </div>
+          </div>
+        `).join('');
+
+        // Setup custom audio controls
+        document.querySelectorAll('.audio-player').forEach(container => {
+          const audio = container.nextElementSibling;
+          const playBtn = container.querySelector('.play-btn');
+          const playIcon = playBtn.querySelector('.icon-play');
+          const pauseIcon = playBtn.querySelector('.icon-pause');
+          const progressContainer = container.querySelector('.progress-container');
+          const progressBar = container.querySelector('.progress');
+          const timeLabel = container.querySelector('.time');
+
+          playBtn.addEventListener('click', () => {
+            if (audio.paused) {
+              audio.play();
+              playIcon.style.display = 'none';
+              pauseIcon.style.display = 'block';
+            } else {
+              audio.pause();
+              playIcon.style.display = 'block';
+              pauseIcon.style.display = 'none';
+            }
+          });
+
+          audio.addEventListener('timeupdate', () => {
+            const percent = (audio.currentTime / audio.duration) * 100;
+            progressBar.style.width = percent + '%';
+            const mins = Math.floor(audio.currentTime / 60);
+            const secs = Math.floor(audio.currentTime % 60).toString().padStart(2, '0');
+            timeLabel.textContent = `${mins}:${secs}`;
+          });
+
+          progressContainer.addEventListener('click', e => {
+            const rect = progressContainer.getBoundingClientRect();
+            const clickX = e.clientX - rect.left;
+            const newTime = (clickX / rect.width) * audio.duration;
+            audio.currentTime = newTime;
+          });
+        });
+
+      } catch (err) {
+        console.error(err);
+        results.innerHTML = '<p class="col-span-full text-center text-red-500">Error en la búsqueda.</p>';
+      }
+    });
+  </script>
+</body>
+</html>
