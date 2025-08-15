@@ -10,7 +10,7 @@ SEARCH_OPTS = {
     'format': 'bestaudio',
     'noplaylist': True,
     'extract_flat': False,
-    'nocheckcertificate': True,  # 👈 Ignorar verificación SSL
+    'nocheckcertificate': True,  # 👈 Ignorar verificación SSL esto estaba causando error de certificado ssl al tratar de conectar con la API ademas se comezó a usar un falso user agents
     'user_agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) '
                   'AppleWebKit/537.36 (KHTML, like Gecko) '
                   'Chrome/115.0.0.0 Safari/537.36'
