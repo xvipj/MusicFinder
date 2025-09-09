@@ -1,3 +1,6 @@
+import os
+import re
+import tempfile
 from flask import Flask, render_template, request, jsonify, send_file
 from yt_dlp import YoutubeDL
 
@@ -74,23 +77,44 @@ def api_search():
 
     return jsonify(results)
 
+def is_valid_video_id(video_id):
+    return re.match(r'^[\w-]{11}$', video_id) is not None
+
 # Descargar FLAC
 @app.route('/download/<video_id>')
 def download(video_id):
+    if not is_valid_video_id(video_id):
+        return "Invalid video ID", 400
+
     url = f"https://www.youtube.com/watch?v={video_id}"
-    with YoutubeDL(YDL_OPTS_DOWNLOAD) as ydl:
-        info = ydl.extract_info(url, download=True)
-        filename = ydl.prepare_filename(info).rsplit('.', 1)[0] + '.flac'
-    return send_file(filename, as_attachment=True)
+    try:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            opts = YDL_OPTS_DOWNLOAD.copy()
+            opts['outtmpl'] = os.path.join(tmpdir, '%(title)s.%(ext)s')
+            with YoutubeDL(opts) as ydl:
+                info = ydl.extract_info(url, download=True)
+                filename = ydl.prepare_filename(info).rsplit('.', 1)[0] + '.flac'
+            return send_file(filename, as_attachment=True)
+    except Exception:
+        return "Error downloading file", 500
 
 # Descargar MP3
 @app.route('/download-mp3/<video_id>')
 def download_mp3(video_id):
+    if not is_valid_video_id(video_id):
+        return "Invalid video ID", 400
+
     url = f"https://www.youtube.com/watch?v={video_id}"
-    with YoutubeDL(YDL_OPTS_DOWNLOAD_MP3) as ydl:
-        info = ydl.extract_info(url, download=True)
-        filename = ydl.prepare_filename(info).rsplit('.', 1)[0] + '.mp3'
-    return send_file(filename, as_attachment=True)
+    try:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            opts = YDL_OPTS_DOWNLOAD_MP3.copy()
+            opts['outtmpl'] = os.path.join(tmpdir, '%(title)s.%(ext)s')
+            with YoutubeDL(opts) as ydl:
+                info = ydl.extract_info(url, download=True)
+                filename = ydl.prepare_filename(info).rsplit('.', 1)[0] + '.mp3'
+            return send_file(filename, as_attachment=True)
+    except Exception:
+        return "Error downloading file", 500
 
 if __name__ == '__main__':
-    app.run(debug=True)
+    app.run(debug=False)
